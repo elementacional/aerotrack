@@ -1,0 +1,1491 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AeroTrack — Rastreamento Inteligente de Passagens</title>
+  <meta name="description" content="App leve para buscar voos, criar alertas de preço e ver as melhores épocas de compra." />
+  <style>
+    :root {
+      --bg: #0b1220;
+      --surface: #121a2b;
+      --surface2: #1a2438;
+      --border: #273449;
+      --text: #e8eef7;
+      --muted: #8fa0b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --green: #22c55e;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --radius: 14px;
+      --shadow: 0 10px 40px rgba(0,0,0,.35);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+    a { color: #60a5fa; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Header */
+    header {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(11,18,32,.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav {
+      max-width: 1100px; margin: 0 auto;
+      padding: 0.9rem 1.25rem;
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 0.55rem;
+      font-weight: 700; font-size: 1.15rem; letter-spacing: -0.02em;
+    }
+    .logo-mark {
+      width: 34px; height: 34px; border-radius: 10px;
+      background: linear-gradient(135deg, #3b82f6, #06b6d4);
+      display: grid; place-items: center; font-size: 1.1rem;
+    }
+    .nav-links { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .nav-btn {
+      background: transparent; border: 1px solid transparent;
+      color: var(--muted); padding: 0.45rem 0.85rem; border-radius: 999px;
+      cursor: pointer; font-size: 0.92rem; font-weight: 500;
+      transition: .15s ease;
+    }
+    .nav-btn:hover { color: var(--text); background: var(--surface2); }
+    .nav-btn.active {
+      color: #fff; background: var(--accent); border-color: var(--accent);
+    }
+
+    /* Layout */
+    main { max-width: 1100px; margin: 0 auto; padding: 1.75rem 1.25rem 3.5rem; }
+    .page { display: none; animation: fade .25s ease; }
+    .page.active { display: block; }
+    @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    h1 { font-size: 1.65rem; letter-spacing: -0.03em; margin-bottom: 0.35rem; }
+    .subtitle { color: var(--muted); margin-bottom: 1.5rem; }
+
+    /* Cards & forms */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.35rem 1.4rem;
+      box-shadow: var(--shadow);
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+    /* Painel de busca — 2 linhas: Origem+datas / Destino+pax+botão */
+    .search-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+    .search-panel .sp-row {
+      display: grid;
+      gap: 0.85rem 1rem;
+      align-items: end;
+    }
+    .search-panel .sp-row-1 {
+      grid-template-columns: minmax(200px, 1.4fr) 1fr 1fr;
+    }
+    .search-panel .sp-row-2 {
+      grid-template-columns: minmax(200px, 1.4fr) minmax(100px, 0.7fr) auto;
+    }
+    .search-panel .sp-btn .btn {
+      min-width: 120px;
+      padding: 0.7rem 1.25rem;
+      height: 42px;
+    }
+    .search-panel select.airport-select {
+      text-transform: none;
+      cursor: pointer;
+    }
+    @media (max-width: 720px) {
+      .search-panel .sp-row-1,
+      .search-panel .sp-row-2 {
+        grid-template-columns: 1fr 1fr;
+      }
+      .search-panel .sp-row-1 > :first-child,
+      .search-panel .sp-row-2 > :first-child {
+        grid-column: 1 / -1;
+      }
+      .search-panel .sp-btn { grid-column: 1 / -1; }
+      .search-panel .sp-btn .btn { width: 100%; }
+    }
+    @media (max-width: 420px) {
+      .search-panel .sp-row-1,
+      .search-panel .sp-row-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+    label {
+      display: block; font-size: 0.82rem; color: var(--muted);
+      margin-bottom: 0.35rem; font-weight: 500;
+    }
+    input, select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 0.7rem 0.85rem;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color .15s;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+      background: var(--accent); color: #fff; border: none;
+      padding: 0.75rem 1.25rem; border-radius: 10px;
+      font-weight: 600; font-size: 0.95rem; cursor: pointer;
+      transition: background .15s, transform .1s;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn:active { transform: scale(.98); }
+    .btn-secondary {
+      background: var(--surface2); color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: #243048; }
+    .btn-block { width: 100%; }
+    .btn-sm { padding: 0.45rem 0.8rem; font-size: 0.85rem; }
+
+    /* Results */
+    .results { margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.85rem; }
+    .results-heading {
+      font-size: 1rem; color: #93c5fd; font-weight: 600;
+      margin: 0 0 0.75rem; padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .results-heading span { color: var(--muted); font-weight: 500; font-size: 0.88rem; }
+    .price-note {
+      font-size: 0.82rem; color: var(--muted);
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      border-radius: 10px;
+      padding: 0.65rem 0.9rem;
+      margin: 0 0 1rem;
+      line-height: 1.45;
+    }
+    .price-note strong { color: #fbbf24; }
+    .flight-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .price-est {
+      font-size: 1.05rem; font-weight: 600; color: #a5b4fc; text-align: right;
+    }
+    .price-est small {
+      display: block; font-size: 0.7rem; color: var(--muted); font-weight: 500;
+    }
+    .flight-actions {
+      display: flex; flex-direction: column; gap: 0.35rem; min-width: 150px;
+    }
+    .flight-actions a, .flight-actions button {
+      text-align: center; text-decoration: none; font-size: 0.8rem; font-weight: 600;
+      padding: 0.4rem 0.65rem; border-radius: 8px; border: none; cursor: pointer;
+    }
+    .flight-actions .btn-official {
+      background: var(--accent); color: #fff;
+    }
+    .flight-actions .btn-official:hover { background: var(--accent-hover); }
+    .flight-actions .btn-gf {
+      background: var(--surface2); color: #93c5fd; border: 1px solid var(--border);
+    }
+    .flight-actions .btn-gf:hover { border-color: #3b82f6; }
+    .flight-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.15rem;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.75rem;
+      align-items: center;
+      transition: border-color .15s;
+    }
+    .flight-card:hover { border-color: #3b82f6aa; }
+    .airline { font-weight: 600; font-size: 0.95rem; }
+    .route-time { color: var(--muted); font-size: 0.88rem; margin-top: 0.2rem; }
+    .price {
+      font-size: 1.35rem; font-weight: 700; color: #86efac;
+      text-align: right;
+    }
+    .price small { display: block; font-size: 0.75rem; color: var(--muted); font-weight: 500; }
+    .badge {
+      display: inline-block; font-size: 0.72rem; font-weight: 600;
+      padding: 0.18rem 0.5rem; border-radius: 999px; margin-left: 0.35rem;
+    }
+    .badge-direct { background: #14532d; color: #bbf7d0; }
+    .badge-stop { background: #422006; color: #fde68a; }
+
+    /* Alerts list */
+    .alert-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.15rem;
+      display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .alert-meta { color: var(--muted); font-size: 0.88rem; margin-top: 0.25rem; }
+    .status {
+      font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+    }
+    .status-active { background: #14532d; color: #bbf7d0; }
+    .status-triggered { background: #1e3a8a; color: #bfdbfe; }
+    .status-paused { background: #3f3f46; color: #d4d4d8; }
+
+    /* Insights */
+    .verdict {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      font-size: 1.05rem; font-weight: 700;
+      padding: 0.55rem 1rem; border-radius: 999px; margin: 0.75rem 0 1rem;
+    }
+    .verdict-ideal { background: #14532d; color: #bbf7d0; }
+    .verdict-good { background: #1e3a8a; color: #bfdbfe; }
+    .verdict-high { background: #78350f; color: #fde68a; }
+
+    .chart-wrap {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem;
+      margin-top: 1rem;
+      height: 220px;
+      position: relative;
+    }
+    canvas { width: 100% !important; height: 100% !important; }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.75rem;
+      margin: 1rem 0;
+    }
+    .stat {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem;
+      text-align: center;
+    }
+    .stat-value { font-size: 1.25rem; font-weight: 700; }
+    .stat-label { font-size: 0.78rem; color: var(--muted); margin-top: 0.15rem; }
+
+    /* Ofertas — layout limpo */
+    .insight-header {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    .insight-dates {
+      color: var(--muted); font-size: 0.9rem;
+    }
+    .insight-dates strong { color: #93c5fd; font-weight: 600; }
+
+    .airline-offers { margin-top: 1.5rem; }
+    .airline-offers h4 {
+      font-size: 0.88rem; color: var(--muted); margin-bottom: 0.75rem;
+      font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .offer-row {
+      display: grid;
+      grid-template-columns: minmax(120px, 1.2fr) minmax(140px, 1.4fr) auto auto;
+      gap: 0.75rem 1rem;
+      align-items: center;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.85rem 1rem;
+      margin-bottom: 0.55rem;
+      transition: border-color .15s;
+    }
+    .offer-row:hover { border-color: #3b82f6aa; }
+    .offer-row .or-airline { font-weight: 600; font-size: 0.95rem; }
+    .offer-row .or-tags { margin-top: 0.2rem; }
+    .offer-row .or-route { font-size: 0.84rem; color: var(--muted); line-height: 1.45; }
+    .offer-row .or-route span { color: var(--text); }
+    .offer-row .or-price {
+      font-size: 1.15rem; font-weight: 700; color: #86efac; text-align: right;
+      white-space: nowrap;
+    }
+    .offer-row .or-price small {
+      display: block; font-size: 0.7rem; color: var(--muted); font-weight: 500;
+    }
+    .offer-row .or-actions {
+      display: flex; flex-direction: column; gap: 0.35rem; align-items: stretch;
+    }
+    .offer-row .or-actions a {
+      text-align: center; text-decoration: none;
+      font-size: 0.8rem; font-weight: 600;
+      padding: 0.4rem 0.7rem; border-radius: 8px;
+      white-space: nowrap;
+    }
+    .btn-book {
+      background: var(--accent); color: #fff !important;
+    }
+    .btn-book:hover { background: var(--accent-hover); text-decoration: none !important; }
+    .btn-book-alt {
+      background: var(--surface2); color: #93c5fd !important;
+      border: 1px solid var(--border);
+    }
+    .btn-book-alt:hover { border-color: #3b82f6; text-decoration: none !important; }
+
+    .chart-section {
+      margin-top: 1.75rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--border);
+    }
+    .chart-section summary {
+      cursor: pointer; color: var(--muted); font-size: 0.9rem; font-weight: 500;
+      list-style: none; user-select: none;
+    }
+    .chart-section summary::-webkit-details-marker { display: none; }
+    .chart-section summary::before { content: '▸ '; color: #60a5fa; }
+    .chart-section[open] summary::before { content: '▾ '; }
+    .chart-section .chart-wrap { margin-top: 0.85rem; }
+
+    .book-link {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      margin-top: 0.35rem; font-size: 0.8rem; color: #60a5fa; font-weight: 500;
+    }
+    .book-link:hover { text-decoration: underline; }
+
+    @media (max-width: 720px) {
+      .offer-row {
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas:
+          "airline price"
+          "route route"
+          "actions actions";
+      }
+      .offer-row .or-airline { grid-area: airline; }
+      .offer-row .or-route { grid-area: route; }
+      .offer-row .or-price { grid-area: price; text-align: right; }
+      .offer-row .or-actions {
+        grid-area: actions; flex-direction: row; flex-wrap: wrap;
+      }
+    }
+
+    .empty {
+      text-align: center; color: var(--muted); padding: 2.5rem 1rem;
+      border: 1px dashed var(--border); border-radius: var(--radius);
+    }
+
+    .toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      background: #166534; color: #fff;
+      padding: 0.85rem 1.2rem; border-radius: 10px;
+      box-shadow: var(--shadow); font-weight: 500;
+      transform: translateY(120%); opacity: 0;
+      transition: .3s ease; z-index: 100;
+      max-width: 320px;
+    }
+    .toast.show { transform: none; opacity: 1; }
+
+    footer {
+      max-width: 1100px; margin: 0 auto;
+      padding: 1.5rem 1.25rem 2rem;
+      color: var(--muted); font-size: 0.85rem;
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+
+    @media (max-width: 640px) {
+      h1 { font-size: 1.35rem; }
+      .flight-card { grid-template-columns: 1fr; }
+      .price { text-align: left; }
+      .nav-links { gap: 0.2rem; }
+      .nav-btn { padding: 0.4rem 0.65rem; font-size: 0.85rem; }
+    }
+
+    /* Ampliação pontual: filtros e destinos personalizáveis */
+    .enhance-tools { display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); gap:.8rem; margin-top:1.1rem }
+    .enhance-tools .wide { grid-column:1/-1 }
+    .enhance-tools label { margin-bottom:.3rem }
+    .micro { font-size:.79rem; color:var(--muted); margin-top:.4rem }
+    .inline-tools { display:flex; gap:.5rem; flex-wrap:wrap; align-items:end }
+    .inline-tools input { flex:1; min-width:120px }
+    .inline-tools .btn { flex:0 0 auto }
+    .real-card { grid-template-columns:minmax(0,1fr) auto }
+    .real-details {font-size:.8rem;color:var(--muted);margin-top:.4rem}
+    .real-amount {font-size:1.2rem;font-weight:700;color:#86efac;text-align:right}
+    .live-note {border:1px solid var(--border);border-radius:10px;padding:.8rem;margin-top:1rem;color:var(--muted);font-size:.85rem}
+    @media(max-width:640px){ .real-card{grid-template-columns:1fr}.real-amount{text-align:left} }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="nav">
+      <div class="logo">
+        <div class="logo-mark">✈</div>
+        <span>AeroTrack</span>
+      </div>
+      <nav class="nav-links">
+        <button class="nav-btn active" data-page="busca">Buscar</button>
+        <button class="nav-btn" data-page="alertas">Alertas</button>
+        <button class="nav-btn" data-page="estimativa">Estimativa</button>
+        <button class="nav-btn" data-page="arquitetura">Arquitetura</button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- BUSCA -->
+    <section id="busca" class="page active">
+      <h1>Buscar passagens</h1>
+      <p class="subtitle">Consulta de tarifas reais via integração segura · sem preços inventados</p>
+
+      <div class="card">
+        <form id="searchForm" class="search-panel">
+          <!-- Linha 1: Origem (sigla+cidade) | Ida | Volta -->
+          <div class="sp-row sp-row-1">
+            <div>
+              <label for="origin">Origem</label>
+              <select id="origin" class="airport-select" required>
+                <option value="GRU" selected>GRU – São Paulo (Guarulhos)</option>
+                <option value="CGH">CGH – São Paulo (Congonhas)</option>
+                <option value="GIG">GIG – Rio de Janeiro (Galeão)</option>
+                <option value="SDU">SDU – Rio de Janeiro (Santos Dumont)</option>
+                <option value="BSB">BSB – Brasília</option>
+                <option value="SSA">SSA – Salvador</option>
+                <option value="REC">REC – Recife</option>
+                <option value="FOR">FOR – Fortaleza</option>
+                <option value="CWB">CWB – Curitiba</option>
+                <option value="POA">POA – Porto Alegre</option>
+                <option value="BEL">BEL – Belém</option>
+                <option value="MAO">MAO – Manaus</option>
+                <option value="FLN">FLN – Florianópolis</option>
+                <option value="VIX">VIX – Vitória</option>
+                <option value="LIS">LIS – Lisboa</option>
+                <option value="OPO">OPO – Porto</option>
+                <option value="MAD">MAD – Madrid</option>
+                <option value="MIA">MIA – Miami</option>
+                <option value="JFK">JFK – Nova York</option>
+                <option value="EZE">EZE – Buenos Aires</option>
+              </select>
+            </div>
+            <div>
+              <label for="depDate">Ida</label>
+              <input id="depDate" type="date" required />
+            </div>
+            <div>
+              <label for="retDate">Volta</label>
+              <input id="retDate" type="date" />
+            </div>
+          </div>
+          <!-- Linha 2: Destino (sigla+cidade) | Passageiros | Buscar -->
+          <div class="sp-row sp-row-2">
+            <div>
+              <label for="destination">Destino</label>
+              <select id="destination" class="airport-select" required>
+                <option value="GRU">GRU – São Paulo (Guarulhos)</option>
+                <option value="CGH">CGH – São Paulo (Congonhas)</option>
+                <option value="GIG">GIG – Rio de Janeiro (Galeão)</option>
+                <option value="SDU">SDU – Rio de Janeiro (Santos Dumont)</option>
+                <option value="BSB">BSB – Brasília</option>
+                <option value="SSA" selected>SSA – Salvador</option>
+                <option value="REC">REC – Recife</option>
+                <option value="FOR">FOR – Fortaleza</option>
+                <option value="CWB">CWB – Curitiba</option>
+                <option value="POA">POA – Porto Alegre</option>
+                <option value="BEL">BEL – Belém</option>
+                <option value="MAO">MAO – Manaus</option>
+                <option value="FLN">FLN – Florianópolis</option>
+                <option value="VIX">VIX – Vitória</option>
+                <option value="LIS">LIS – Lisboa</option>
+                <option value="OPO">OPO – Porto</option>
+                <option value="MAD">MAD – Madrid</option>
+                <option value="MIA">MIA – Miami</option>
+                <option value="JFK">JFK – Nova York</option>
+                <option value="EZE">EZE – Buenos Aires</option>
+              </select>
+            </div>
+            <div>
+              <label for="adults">Passageiros</label>
+              <select id="adults">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+              </select>
+            </div>
+            <div class="sp-btn">
+              <label>&nbsp;</label>
+              <button type="submit" class="btn" id="btnSearch">Buscar</button>
+            </div>
+          </div>
+        </form>
+        <div class="enhance-tools" aria-label="Opções adicionais de busca">
+          <div><label for="airlineFilter">Companhia aérea</label><select id="airlineFilter"><option value="">Todas as companhias</option><option value="LA">LATAM</option><option value="G3">GOL</option><option value="AD">Azul</option><option value="TP">TAP</option><option value="AA">American Airlines</option></select></div>
+          <div><label for="stopFilter">Conexões</label><select id="stopFilter"><option value="">Todas</option><option value="0">Somente voos diretos</option><option value="1">Até 1 conexão</option></select></div>
+          <div><label for="maxPrice">Preço máximo (moeda da oferta)</label><input id="maxPrice" type="number" min="0" step="1" placeholder="Sem limite"></div>
+          <div><label for="dealFilter">Ofertas e promoções</label><select id="dealFilter"><option value="all">Todas as tarifas</option><option value="budget">Apenas dentro do preço máximo</option></select></div>
+          <div class="wide"><label>Consultar campanhas e promoções diretamente nas companhias</label><div class="inline-tools"><a class="btn btn-secondary btn-sm" href="https://www.latamairlines.com/br/pt" target="_blank" rel="noopener noreferrer">LATAM</a><a class="btn btn-secondary btn-sm" href="https://www.voegol.com.br/" target="_blank" rel="noopener noreferrer">GOL</a><a class="btn btn-secondary btn-sm" href="https://www.voeazul.com.br/" target="_blank" rel="noopener noreferrer">Azul</a><a class="btn btn-secondary btn-sm" href="https://www.flytap.com/pt-br" target="_blank" rel="noopener noreferrer">TAP</a></div><p class="micro">Links aos sites oficiais. Não representam confirmação de que exista uma promoção ativa na rota pesquisada.</p></div>
+          <div class="wide"><label>Adicionar aeroporto ou destino (código IATA de 3 letras)</label><div class="inline-tools"><input id="newAirportCode" maxlength="3" placeholder="Ex.: NAT"><input id="newAirportName" maxlength="80" placeholder="Cidade / aeroporto"><button class="btn btn-secondary btn-sm" id="addAirport" type="button">+ Adicionar destino</button></div><p class="micro">Os destinos adicionados ficam salvos neste navegador e podem ser usados como origem ou destino. Informe um aeroporto válido.</p></div>
+          <div class="wide"><label for="apiEndpoint">Servidor de tarifas reais (API)</label><div class="inline-tools"><input id="apiEndpoint" type="url" placeholder="https://seu-servidor.exemplo/api/flights"><button type="button" class="btn btn-secondary btn-sm" id="saveEndpoint">Salvar conexão</button></div><p class="micro">O GitHub Pages exibe o aplicativo; a consulta ao fornecedor é feita pelo seu servidor. Nunca coloque a chave da companhia ou da API no HTML.</p></div>
+        </div>
+      </div>
+
+      <div id="searchResults" class="results">
+        <div id="priceFidelityNote" class="price-note" style="display:none">
+          <strong>Tarifas consultadas:</strong> valores retornados pelo provedor, sujeitos a disponibilidade e alteração. Compare bagagem, taxas e condições; confirme o preço antes da compra. Nenhum valor simulado é apresentado como preço de venda.
+        </div>
+        <div id="outboundResults" style="display:none">
+          <h3 class="results-heading" id="outboundHeading">Voos de ida</h3>
+          <div id="outboundList"></div>
+        </div>
+        <div id="returnResults" style="display:none;margin-top:1.5rem">
+          <h3 class="results-heading" id="returnHeading">Voos de volta</h3>
+          <div id="returnList"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ALERTAS -->
+    <section id="alertas" class="page">
+      <h1>Meus alertas de preço</h1>
+      <p class="subtitle">Alertas armazenados neste navegador; monitoramento automático exige serviço conectado</p>
+
+      <div class="card" style="margin-bottom:1.25rem">
+        <h3 style="margin-bottom:1rem;font-size:1.05rem;color:#93c5fd">Criar novo alerta</h3>
+        <form id="alertForm" class="grid-2">
+          <div>
+            <label>Origem</label>
+            <input id="aOrigin" value="GRU" maxlength="3" style="text-transform:uppercase" required />
+          </div>
+          <div>
+            <label>Destino</label>
+            <input id="aDest" value="SSA" maxlength="3" style="text-transform:uppercase" required />
+          </div>
+          <div>
+            <label>Data ida</label>
+            <input id="aDep" type="date" />
+          </div>
+          <div>
+            <label>Preço-alvo (R$)</label>
+            <input id="aTarget" type="number" min="50" step="10" value="450" required />
+          </div>
+          <div style="display:flex;align-items:flex-end">
+            <button type="submit" class="btn btn-block">Criar alerta</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="alertsList"></div>
+    </section>
+
+    <!-- ESTIMATIVA -->
+    <section id="estimativa" class="page">
+      <h1>Estimativa &amp; melhores épocas</h1>
+      <p class="subtitle">Simulação demonstrativa de tendências; não representa histórico real de tarifas</p>
+
+      <div class="card">
+        <form id="insightForm" class="grid-2">
+          <div>
+            <label>Origem</label>
+            <input id="iOrigin" value="GRU" maxlength="3" style="text-transform:uppercase" required />
+          </div>
+          <div>
+            <label>Destino</label>
+            <input id="iDest" value="SSA" maxlength="3" style="text-transform:uppercase" required />
+          </div>
+          <div>
+            <label>Tipo</label>
+            <select id="iTripType">
+              <option value="oneway">Só ida</option>
+              <option value="roundtrip" selected>Ida e volta</option>
+            </select>
+          </div>
+          <div>
+            <label>Data da ida</label>
+            <input id="iDepDate" type="date" required />
+          </div>
+          <div id="iRetWrap">
+            <label>Data da volta</label>
+            <input id="iRetDate" type="date" />
+          </div>
+          <!-- mês derivado automaticamente da data de ida -->
+          <input type="hidden" id="iMonth" />
+          <div style="display:flex;align-items:flex-end">
+            <button type="submit" class="btn btn-block">Analisar rota</button>
+          </div>
+        </form>
+
+        <div id="insightResult" style="display:none;margin-top:1.75rem">
+          <div class="insight-header">
+            <div id="verdictBadge" class="verdict" style="margin:0"></div>
+            <div id="flightDatesLine" class="insight-dates"></div>
+          </div>
+          <p id="adviceText" style="color:var(--muted);font-size:0.9rem;margin-bottom:1.15rem"></p>
+
+          <div class="stat-grid">
+            <div class="stat">
+              <div class="stat-value" id="sCurrent">—</div>
+              <div class="stat-label">Menor preço</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value" id="sP25">—</div>
+              <div class="stat-label">P25 histórico</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value" id="sMedian">—</div>
+              <div class="stat-label">Mediana</div>
+            </div>
+            <div class="stat">
+              <div class="stat-value" id="sP75">—</div>
+              <div class="stat-label">P75 histórico</div>
+            </div>
+          </div>
+
+          <div class="airline-offers">
+            <h4 id="offersTitle">Melhores ofertas</h4>
+            <div id="airlineOffersList"></div>
+          </div>
+
+          <details class="chart-section">
+            <summary>Ver histórico de preços por mês</summary>
+            <div class="chart-wrap">
+              <canvas id="priceChart"></canvas>
+            </div>
+            <p style="font-size:0.78rem;color:var(--muted);margin-top:0.5rem;text-align:center">
+              Média simulada por mês de viagem
+            </p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ARQUITETURA -->
+    <section id="arquitetura" class="page">
+      <h1>Arquitetura do sistema</h1>
+      <p class="subtitle">Resumo técnico · Documento completo disponível no repositório</p>
+
+      <div class="card" style="margin-bottom:1rem">
+        <h3 style="color:#93c5fd;margin-bottom:0.75rem">Stack recomendada (leve)</h3>
+        <ul style="padding-left:1.2rem;color:var(--muted)">
+          <li><strong style="color:var(--text)">Frontend:</strong> HTML + CSS + JS (este arquivo) ou Vite + React</li>
+          <li><strong style="color:var(--text)">Backend:</strong> Python FastAPI (async)</li>
+          <li><strong style="color:var(--text)">Banco:</strong> PostgreSQL + Redis (cache e filas)</li>
+          <li><strong style="color:var(--text)">API de voos:</strong> Duffel (principal em 2026)</li>
+          <li><strong style="color:var(--text)">Workers:</strong> RQ / Celery para alertas em background</li>
+        </ul>
+      </div>
+
+      <div class="card" style="margin-bottom:1rem">
+        <h3 style="color:#93c5fd;margin-bottom:0.75rem">Por que roda bem no GitHub</h3>
+        <ul style="padding-left:1.2rem;color:var(--muted)">
+          <li>Este demo é 100% estático → <strong style="color:var(--text)">GitHub Pages</strong> em 1 clique</li>
+          <li>Sem build, sem Node, sem Docker obrigatório para a demo</li>
+          <li>Backend real (FastAPI) pode viver em outro serviço (Railway, Fly.io, Render) e o frontend continua no Pages</li>
+          <li>Arquivo de arquitetura completo: <code style="background:var(--bg);padding:0.15rem 0.4rem;border-radius:4px">arquitetura-app-rastreamento-passagens.html</code></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3 style="color:#93c5fd;margin-bottom:0.75rem">Como publicar no GitHub Pages</h3>
+        <ol style="padding-left:1.2rem;color:var(--muted)">
+          <li>Crie um repositório (ex.: <code style="background:var(--bg);padding:0.1rem 0.35rem;border-radius:4px">aerotrack</code>)</li>
+          <li>Suba este <code style="background:var(--bg);padding:0.1rem 0.35rem;border-radius:4px">index.html</code> na raiz (e o HTML de arquitetura se quiser)</li>
+          <li>Settings → Pages → Source: <strong style="color:var(--text)">Deploy from a branch</strong> → branch <code style="background:var(--bg);padding:0.1rem 0.35rem;border-radius:4px">main</code> / root</li>
+          <li>Aguarde ~1 minuto → URL: <code style="background:var(--bg);padding:0.1rem 0.35rem;border-radius:4px">https://SEU-USER.github.io/aerotrack/</code></li>
+        </ol>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    AeroTrack · Busca real mediante configuração da API · Estimativas históricas continuam demonstrativas
+  </footer>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // ---------- Navegação ----------
+    const pages = document.querySelectorAll('.page');
+    const navBtns = document.querySelectorAll('.nav-btn');
+
+    navBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.page;
+        navBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        pages.forEach(p => p.classList.toggle('active', p.id === id));
+      });
+    });
+
+    // ---------- Datas padrão ----------
+    function addDays(d, n) {
+      const x = new Date(d);
+      x.setDate(x.getDate() + n);
+      return localISO(x);
+    }
+    const today = new Date();
+    const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    document.getElementById('depDate').value = addDays(today, 45);
+    document.getElementById('retDate').value = addDays(today, 52);
+    document.getElementById('aDep').value = addDays(today, 50);
+    document.getElementById('iDepDate').value = addDays(today, 50);
+    document.getElementById('iRetDate').value = addDays(today, 57);
+    document.getElementById('iMonth').value = addDays(today, 50).slice(0, 7);
+
+    // Mostrar/ocultar data de volta conforme tipo de viagem
+    const iTripType = document.getElementById('iTripType');
+    const iRetWrap = document.getElementById('iRetWrap');
+    function syncRetVisibility() {
+      const isRT = iTripType.value === 'roundtrip';
+      iRetWrap.style.display = isRT ? 'block' : 'none';
+      document.getElementById('iRetDate').required = isRT;
+    }
+    iTripType.addEventListener('change', syncRetVisibility);
+    syncRetVisibility();
+
+    // Mês do histórico sempre derivado da data de ida
+    function syncMonthFromDep() {
+      const dep = document.getElementById('iDepDate').value;
+      if (dep) document.getElementById('iMonth').value = dep.slice(0, 7);
+    }
+    document.getElementById('iDepDate').addEventListener('change', syncMonthFromDep);
+    syncMonthFromDep();
+
+    // ---------- Toast ----------
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2800);
+    }
+
+    // ---------- Mock de companhias e preços ----------
+    // Links oficiais de reserva (páginas de busca das companhias)
+    const AIRLINES = [
+      {
+        name: 'LATAM',
+        code: 'LA',
+        bookingUrl: 'https://www.latamairlines.com/br/pt',
+        color: '#10014f',
+      },
+      {
+        name: 'GOL',
+        code: 'G3',
+        bookingUrl: 'https://www.voegol.com.br/',
+        color: '#ff6600',
+      },
+      {
+        name: 'Azul',
+        code: 'AD',
+        bookingUrl: 'https://www.voeazul.com.br/',
+        color: '#0033a0',
+      },
+      {
+        name: 'TAP',
+        code: 'TP',
+        bookingUrl: 'https://www.flytap.com/pt-br',
+        color: '#c8102e',
+      },
+      {
+        name: 'American Airlines',
+        code: 'AA',
+        bookingUrl: 'https://www.aa.com/booking/find-flights',
+        color: '#0078d2',
+      },
+    ];
+
+    function hashStr(s) {
+      let h = 0;
+      for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
+      return Math.abs(h);
+    }
+
+    function mockFlights(origin, dest, dep, adults) {
+      const seed = hashStr(origin + dest + (dep || '') + adults);
+      const base = 280 + (seed % 420);
+      const count = 4 + (seed % 3);
+      const flights = [];
+      for (let i = 0; i < count; i++) {
+        const airline = AIRLINES[(seed + i) % AIRLINES.length];
+        const stops = (seed + i * 7) % 3 === 0 ? 1 : 0;
+        const price = Math.round((base + i * 45 + (stops * 30)) * adults);
+        const depH = 6 + ((seed + i * 3) % 14);
+        const dur = 1.5 + ((seed + i) % 8) * 0.5 + stops * 1.2;
+        const arrH = (depH + Math.floor(dur)) % 24;
+        flights.push({
+          airline: airline.name,
+          code: airline.code + (100 + ((seed + i) % 800)),
+          bookingUrl: airline.bookingUrl,
+          dep: `${String(depH).padStart(2,'0')}:${String((seed + i * 11) % 60).padStart(2,'0')}`,
+          arr: `${String(arrH).padStart(2,'0')}:${String((seed + i * 17) % 60).padStart(2,'0')}`,
+          duration: `${Math.floor(dur)}h ${Math.round((dur % 1) * 60)}m`,
+          stops,
+          price,
+        });
+      }
+      return flights.sort((a, b) => a.price - b.price);
+    }
+
+    /** Formata data YYYY-MM-DD → DD/MM/YYYY */
+    function fmtDateBR(iso) {
+      if (!iso) return '—';
+      const [y, m, d] = iso.split('-');
+      return `${d}/${m}/${y}`;
+    }
+
+    /**
+     * Monta URL de busca/reserva na companhia com origem → destino e datas.
+     * Deep-links best-effort; se a companhia não aceitar params, cai na home de reservas.
+     */
+    function buildAirlineBookingUrl(airline, origin, dest, depDate, retDate) {
+      const o = encodeURIComponent(origin);
+      const d = encodeURIComponent(dest);
+      const dep = encodeURIComponent(depDate || '');
+      const ret = retDate ? encodeURIComponent(retDate) : '';
+
+      switch (airline.code) {
+        case 'LA': // LATAM
+          if (retDate) {
+            return `https://www.latamairlines.com/br/pt/oferta-vuelos?origin=${o}&destination=${d}&outbound=${dep}&inbound=${ret}&adt=1&cabin=Y&redemption=false`;
+          }
+          return `https://www.latamairlines.com/br/pt/oferta-vuelos?origin=${o}&destination=${d}&outbound=${dep}&adt=1&cabin=Y&redemption=false`;
+        case 'G3': // GOL
+          if (retDate) {
+            return `https://b2c.voegol.com.br/venda/passo1?origem1=${o}&destino1=${d}&data1=${dep}&origem2=${d}&destino2=${o}&data2=${ret}&numADT=1`;
+          }
+          return `https://b2c.voegol.com.br/venda/passo1?origem1=${o}&destino1=${d}&data1=${dep}&numADT=1`;
+        case 'AD': // Azul
+          // Azul costuma redirecionar; envia para home de busca com referência da rota
+          return `https://www.voeazul.com.br/?origin=${o}&destination=${d}&departure=${dep}${retDate ? '&return=' + ret : ''}`;
+        case 'TP': // TAP
+          if (retDate) {
+            return `https://www.flytap.com/pt-br/voos?tripType=roundTrip&origin=${o}&destination=${d}&outboundDate=${dep}&inboundDate=${ret}&adults=1`;
+          }
+          return `https://www.flytap.com/pt-br/voos?tripType=oneWay&origin=${o}&destination=${d}&outboundDate=${dep}&adults=1`;
+        case 'AA': // American
+          if (retDate) {
+            return `https://www.aa.com/booking/find-flights?locale=pt_BR&from=${o}&to=${d}&departDate=${dep}&returnDate=${ret}&adults=1`;
+          }
+          return `https://www.aa.com/booking/find-flights?locale=pt_BR&from=${o}&to=${d}&departDate=${dep}&adults=1`;
+        default:
+          return airline.bookingUrl;
+      }
+    }
+
+    /** Gera horário simulado a partir de seed */
+    function mockTime(seed, offset) {
+      const h = 6 + ((seed + offset * 3) % 14);
+      const mi = (seed + offset * 11) % 60;
+      return `${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}`;
+    }
+
+    /**
+     * Ofertas para Estimativa.
+     * - Só ida: uma oferta por companhia (ida)
+     * - Ida/volta: combinações dos melhores preços (pode misturar companhias)
+     */
+    function mockAirlineOffers(origin, dest, depDate, retDate, tripType) {
+      const seed = hashStr(origin + dest + (depDate || '') + (retDate || '') + tripType);
+      const base = 320 + (seed % 380);
+
+      // Trechos de ida por companhia
+      const outbound = AIRLINES.map((airline, i) => {
+        const factor = 0.88 + ((seed + i * 13) % 28) / 100;
+        const stops = (seed + i * 5) % 4 === 0 ? 1 : 0;
+        const price = Math.round(base * factor + stops * 35 + i * 18);
+        return {
+          airline,
+          price,
+          stops,
+          depTime: mockTime(seed, i),
+          arrTime: mockTime(seed + 40, i + 2),
+          date: depDate,
+        };
+      }).sort((a, b) => a.price - b.price);
+
+      if (tripType !== 'roundtrip' || !retDate) {
+        // Só ida — no máximo 4 ofertas
+        return outbound.slice(0, 4).map((leg, idx) => ({
+          type: 'oneway',
+          name: leg.airline.name,
+          code: leg.airline.code,
+          price: leg.price,
+          stops: leg.stops,
+          origin,
+          dest,
+          depDate,
+          retDate: null,
+          depTime: leg.depTime,
+          arrTime: leg.arrTime,
+          bookingUrl: buildAirlineBookingUrl(leg.airline, origin, dest, depDate, null),
+          isBest: idx === 0,
+          sameAirline: true,
+          legs: [
+            {
+              label: 'Ida',
+              airline: leg.airline.name,
+              code: leg.airline.code,
+              from: origin,
+              to: dest,
+              date: depDate,
+              depTime: leg.depTime,
+              arrTime: leg.arrTime,
+              stops: leg.stops,
+              price: leg.price,
+              bookingUrl: buildAirlineBookingUrl(leg.airline, origin, dest, depDate, null),
+            },
+          ],
+        }));
+      }
+
+      // Volta por companhia (preços independentes)
+      const inbound = AIRLINES.map((airline, i) => {
+        const factor = 0.90 + ((seed + i * 17 + 7) % 26) / 100;
+        const stops = (seed + i * 9) % 5 === 0 ? 1 : 0;
+        const price = Math.round(base * 0.92 * factor + stops * 30 + i * 15);
+        return {
+          airline,
+          price,
+          stops,
+          depTime: mockTime(seed + 90, i),
+          arrTime: mockTime(seed + 130, i + 1),
+          date: retDate,
+        };
+      }).sort((a, b) => a.price - b.price);
+
+      // Combinações: melhores pares (ida + volta), permitindo companhias diferentes
+      const combos = [];
+      const topOut = outbound.slice(0, 4);
+      const topIn = inbound.slice(0, 4);
+      topOut.forEach((out, oi) => {
+        topIn.forEach((inn, ii) => {
+          combos.push({
+            type: 'roundtrip',
+            out,
+            inn,
+            price: out.price + inn.price,
+            sameAirline: out.airline.code === inn.airline.code,
+          });
+        });
+      });
+      combos.sort((a, b) => a.price - b.price);
+
+      // Top 4 combinações (layout limpo)
+      return combos.slice(0, 4).map((c, idx) => {
+        const title = c.sameAirline
+          ? c.out.airline.name
+          : `${c.out.airline.name} + ${c.inn.airline.name}`;
+        // Link principal: se mesma cia, abre ida+volta nela; senão abre a da ida (usuário reserva volta na outra)
+        const primaryAirline = c.out.airline;
+        const bookingUrl = c.sameAirline
+          ? buildAirlineBookingUrl(primaryAirline, origin, dest, depDate, retDate)
+          : buildAirlineBookingUrl(primaryAirline, origin, dest, depDate, null);
+
+        return {
+          type: 'roundtrip',
+          name: title,
+          code: c.sameAirline ? c.out.airline.code : `${c.out.airline.code}/${c.inn.airline.code}`,
+          price: c.price,
+          origin,
+          dest,
+          depDate,
+          retDate,
+          bookingUrl,
+          sameAirline: c.sameAirline,
+          isBest: idx === 0,
+          legs: [
+            {
+              label: 'Ida',
+              airline: c.out.airline.name,
+              code: c.out.airline.code,
+              from: origin,
+              to: dest,
+              date: depDate,
+              depTime: c.out.depTime,
+              arrTime: c.out.arrTime,
+              stops: c.out.stops,
+              price: c.out.price,
+              bookingUrl: buildAirlineBookingUrl(c.out.airline, origin, dest, depDate, null),
+            },
+            {
+              label: 'Volta',
+              airline: c.inn.airline.name,
+              code: c.inn.airline.code,
+              from: dest,
+              to: origin,
+              date: retDate,
+              depTime: c.inn.depTime,
+              arrTime: c.inn.arrTime,
+              stops: c.inn.stops,
+              price: c.inn.price,
+              bookingUrl: buildAirlineBookingUrl(c.inn.airline, dest, origin, retDate, null),
+            },
+          ],
+        };
+      });
+    }
+
+    // ---------- Busca ----------
+    /** Google Flights — preços agregados reais da rota/data */
+    function buildGoogleFlightsUrl(from, to, dateIso) {
+      const q = encodeURIComponent(`Voos de ${from} para ${to} em ${dateIso}`);
+      return `https://www.google.com/travel/flights?hl=pt-BR&curr=BRL&q=${q}`;
+    }
+
+    function renderFlightCards(flights, from, to, dateIso, listEl) {
+      listEl.innerHTML = flights.map(f => {
+        const airlineObj = AIRLINES.find(a => a.name === f.airline || f.code.startsWith(a.code));
+        const bookUrl = airlineObj
+          ? buildAirlineBookingUrl(airlineObj, from, to, dateIso, null)
+          : (f.bookingUrl || '#');
+        const gfUrl = buildGoogleFlightsUrl(from, to, dateIso);
+        return `
+          <div class="flight-card">
+            <div>
+              <div class="airline">${f.airline} · ${f.code}
+                <span class="badge ${f.stops === 0 ? 'badge-direct' : 'badge-stop'}">
+                  ${f.stops === 0 ? 'Direto' : f.stops + ' parada'}
+                </span>
+              </div>
+              <div class="route-time">
+                <strong style="color:var(--text)">${fmtDateBR(dateIso)}</strong>
+                · ${f.dep} → ${f.arr} · ${f.duration} · ${from} → ${to}
+              </div>
+            </div>
+            <div class="flight-actions">
+              <div class="price-est">~ R$ ${f.price.toLocaleString('pt-BR')}<small>estimativa (demo)</small></div>
+              <a class="btn-official" href="${bookUrl}" target="_blank" rel="noopener noreferrer"
+                 title="Preço oficial no site da ${f.airline}">
+                Preço real · ${f.airline.split(' ')[0]} ↗
+              </a>
+              <a class="btn-gf" href="${gfUrl}" target="_blank" rel="noopener noreferrer"
+                 title="Ver preços reais no Google Flights">
+                Google Flights ↗
+              </a>
+              <button type="button" class="btn btn-sm btn-secondary"
+                onclick="createAlertFromSearch('${from}','${to}','${dateIso}',${Math.round(f.price * 0.92)})">
+                Criar alerta
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ----- AeroTrack: conexão real, filtros e destinos favoritos -----
+    const DESTINATIONS_KEY = 'aerotrack_destinations_v2';
+    const ENDPOINT_KEY = 'aerotrack_endpoint_v2';
+    const codeSafe = x => /^[A-Z]{3}$/.test(x);
+    function esc(x) { return String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function getCustomAirports() { try { const v=JSON.parse(localStorage.getItem(DESTINATIONS_KEY)||'[]'); return Array.isArray(v)?v:[]; } catch {return [];} }
+    function refreshAirports() {
+      const airports=getCustomAirports();
+      for (const id of ['origin','destination']) {
+        const select=document.getElementById(id), selected=select.value;
+        select.querySelectorAll('[data-custom="1"]').forEach(el=>el.remove());
+        airports.forEach(a=>{if(![...select.options].some(o=>o.value===a.code)){const el=new Option(`${a.code} – ${a.name}`,a.code); el.dataset.custom='1';select.add(el);}});
+        if([...select.options].some(o=>o.value===selected))select.value=selected;
+      }
+    }
+    document.getElementById('addAirport').addEventListener('click',()=>{
+      const code=document.getElementById('newAirportCode').value.trim().toUpperCase();
+      const name=document.getElementById('newAirportName').value.trim();
+      if(!codeSafe(code)||name.length<2){showToast('Informe código IATA (3 letras) e nome do destino');return;}
+      if([...document.getElementById('destination').options].some(o=>o.value===code)){showToast('Esse aeroporto já está na lista');return;}
+      const list=getCustomAirports();list.push({code,name});
+      localStorage.setItem(DESTINATIONS_KEY,JSON.stringify(list));refreshAirports();
+      document.getElementById('destination').value=code;
+      document.getElementById('newAirportCode').value='';document.getElementById('newAirportName').value='';
+      showToast('Destino adicionado');
+    });
+    document.getElementById('apiEndpoint').value=localStorage.getItem(ENDPOINT_KEY)||'';
+    document.getElementById('saveEndpoint').addEventListener('click',()=>{
+      const u=document.getElementById('apiEndpoint').value.trim();
+      if(u && (!/^https:\/\//i.test(u) && !/^http:\/\/localhost(?::\d+)?\//i.test(u))){showToast('Use HTTPS ou localhost');return;}
+      localStorage.setItem(ENDPOINT_KEY,u);showToast(u?'Conexão salva':'Conexão removida');
+    });
+    refreshAirports();
+    function fmtMoney(value,currency){
+      try {return new Intl.NumberFormat('pt-BR',{style:'currency',currency:currency||'BRL'}).format(value);}
+      catch{return `${currency||''} ${Number(value).toFixed(2)}`;}
+    }
+    function airlineMatches(f,code){return !code || (f.airline_codes||[]).includes(code);}
+    function searchLink(origin,dest,date){return buildGoogleFlightsUrl(origin,dest,date);}
+    function renderLiveOffers(offers,origin,dest,dep,ret) {
+      const airline=document.getElementById('airlineFilter').value;
+      const stops=document.getElementById('stopFilter').value;
+      const limit=Number(document.getElementById('maxPrice').value||0);
+      const deals=document.getElementById('dealFilter').value;
+      const box=document.getElementById('outboundList');
+      if(deals==='budget'&&!limit){box.innerHTML='<div class="empty">Informe um preço máximo para filtrar oportunidades dentro do seu orçamento.</div>';return;}
+      const list=offers.filter(f=>airlineMatches(f,airline))
+        .filter(f=>stops===''||f.max_stops<=Number(stops))
+        .filter(f=>!limit || (Number(f.total_amount)<=limit && (f.currency==='BRL' || !limit)))
+        .sort((a,b)=>Number(a.total_amount)-Number(b.total_amount));
+      if(!list.length){box.innerHTML='<div class="empty">Nenhuma oferta corresponde aos filtros nesta consulta. Altere os critérios ou confira diretamente no Google Flights.</div>';return;}
+      box.innerHTML=list.map(f=>{
+        const slices=(f.slices||[]).map((sl,i)=>`<div class="real-details"><strong>${i?'Volta':'Ida'}</strong> · ${esc(sl.from)} → ${esc(sl.to)} · ${esc(sl.departure||'Horário indisponível')} · ${esc(sl.duration||'')} · ${sl.stops===0?'Direto':esc(sl.stops)+' conexão(ões)'}</div>`).join('');
+        const primary=(f.airline_codes||[])[0];
+        const airlineObj=AIRLINES.find(a=>a.code===primary);
+        const official=airlineObj?airlineObj.bookingUrl:null;
+        return `<article class="flight-card real-card"><div><div class="airline">${esc(f.airline||'Companhia não informada')} <span class="badge badge-direct">Tarifa consultada</span></div>${slices}<div class="real-details">${esc(f.cabin||'Econômica')} · ${esc(f.passengers||1)} passageiro(s) · Consulta ${esc(f.queried_at||'agora')} · sujeita a alteração</div></div><div class="flight-actions"><div class="real-amount">${fmtMoney(f.total_amount,f.currency)}<small style="display:block;font-size:.7rem;color:var(--muted)">valor total informado pelo provedor</small></div><a class="btn-gf" href="${esc(searchLink(origin,dest,dep))}" target="_blank" rel="noopener noreferrer">Conferir no Google Flights</a>${official?`<a class="btn-official" href="${esc(official)}" target="_blank" rel="noopener noreferrer">Consultar ${esc(airlineObj.name)}</a>`:''}</div></article>`;
+      }).join('');
+    }
+    let latestOffers=[];
+    async function runSearch(){
+      const origin=document.getElementById('origin').value.trim().toUpperCase();
+      const dest=document.getElementById('destination').value.trim().toUpperCase();
+      const dep=document.getElementById('depDate').value,ret=document.getElementById('retDate').value;
+      const adults=+document.getElementById('adults').value;
+      const outBox=document.getElementById('outboundResults'),outList=document.getElementById('outboundList');
+      document.getElementById('returnResults').style.display='none';
+      if(!codeSafe(origin)||!codeSafe(dest)||origin===dest){showToast('Selecione aeroportos diferentes e válidos');return;}
+      if(!dep||dep<localISO(new Date())){showToast('Selecione uma data de ida válida');return;}
+      if(ret&&ret<dep){showToast('Data de volta anterior à ida');return;}
+      const endpoint=document.getElementById('apiEndpoint').value.trim();
+      outBox.style.display='block';
+      document.getElementById('outboundHeading').textContent=`Ofertas consultadas · ${origin} → ${dest} · ${fmtDateBR(dep)}${ret?' / '+fmtDateBR(ret):''}`;
+      document.getElementById('priceFidelityNote').style.display='block';
+      const external=`<div class="live-note">Consulte os preços publicados para esta rota: <a href="${esc(searchLink(origin,dest,dep))}" target="_blank" rel="noopener noreferrer">Google Flights</a>. Os sites das companhias podem apresentar promoções exclusivas.</div>`;
+      latestOffers=[];
+      if(!endpoint){outList.innerHTML='<div class="empty">A consulta em tempo real ainda não está conectada. Configure o endereço do servidor de tarifas reais acima. Nenhum preço fictício será mostrado.</div>'+external;return;}
+      outList.innerHTML='<div class="empty">Consultando tarifas disponíveis no provedor…</div>';
+      const btn=document.getElementById('btnSearch');btn.disabled=true;btn.textContent='Consultando…';
+      try{
+        const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({origin,destination:dest,departure_date:dep,return_date:ret||null,adults})});
+        const payload=await response.json().catch(()=>({}));
+        if(!response.ok)throw new Error(payload.detail||`Erro HTTP ${response.status}`);
+        if(payload.live_mode!==true)throw new Error('O servidor retornou tarifas de teste; não serão exibidas como reais.');
+        if(!Array.isArray(payload.offers))throw new Error('Formato de resposta inválido.');
+        latestOffers=payload.offers;
+        renderLiveOffers(latestOffers,origin,dest,dep,ret);
+        if(!latestOffers.length)outList.innerHTML='<div class="empty">Nenhuma tarifa encontrada para esta rota e data.</div>'+external;
+      }catch(error){outList.innerHTML=`<div class="empty">Não foi possível consultar as tarifas: ${esc(error.message)}. Nenhum preço foi inventado.</div>`+external;}
+      finally{btn.disabled=false;btn.textContent='Buscar';}
+    }
+    ['airlineFilter','stopFilter','maxPrice','dealFilter'].forEach(id=>document.getElementById(id).addEventListener('change',()=>{
+      if(latestOffers.length)renderLiveOffers(latestOffers,document.getElementById('origin').value,document.getElementById('destination').value,document.getElementById('depDate').value,document.getElementById('retDate').value);
+    }));
+
+    document.getElementById('searchForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      runSearch();
+    });
+
+    // ---------- Alertas (localStorage) ----------
+    const ALERTS_KEY = 'aerotrack_alerts_v1';
+
+    function loadAlerts() {
+      try { return JSON.parse(localStorage.getItem(ALERTS_KEY)) || []; }
+      catch { return []; }
+    }
+    function saveAlerts(list) {
+      localStorage.setItem(ALERTS_KEY, JSON.stringify(list));
+    }
+
+    function renderAlerts() {
+      const list = loadAlerts();
+      const box = document.getElementById('alertsList');
+      if (!list.length) {
+        box.innerHTML = '<div class="empty">Nenhum alerta ainda. Crie um acima ou a partir da busca.</div>';
+        return;
+      }
+      box.innerHTML = list.map(a => `
+        <div class="alert-item" style="margin-bottom:0.75rem">
+          <div>
+            <strong>${a.origin} → ${a.dest}</strong>
+            <span class="status status-${a.status}">${a.status === 'active' ? 'Ativo' : a.status === 'triggered' ? 'Disparado' : 'Pausado'}</span>
+            <div class="alert-meta">
+              Alvo: R$ ${a.target.toLocaleString('pt-BR')}
+              ${a.dep ? ' · Ida: ' + a.dep : ''}
+              · Criado em ${a.created}
+            </div>
+          </div>
+          <div style="display:flex;gap:0.4rem">
+            <button class="btn btn-secondary btn-sm" onclick="toggleAlert('${a.id}')">
+              ${a.status === 'paused' ? 'Retomar' : 'Pausar'}
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="removeAlert('${a.id}')">Excluir</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function createAlertFromSearch(origin, dest, dep, target) {
+      document.getElementById('aOrigin').value = origin;
+      document.getElementById('aDest').value = dest;
+      document.getElementById('aDep').value = dep;
+      document.getElementById('aTarget').value = target;
+      navBtns.forEach(b => b.classList.toggle('active', b.dataset.page === 'alertas'));
+      pages.forEach(p => p.classList.toggle('active', p.id === 'alertas'));
+      showToast('Preencha o preço-alvo e clique em Criar alerta');
+    }
+
+    document.getElementById('alertForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const list = loadAlerts();
+      const alert = {
+        id: 'a' + Date.now(),
+        origin: document.getElementById('aOrigin').value.trim().toUpperCase(),
+        dest: document.getElementById('aDest').value.trim().toUpperCase(),
+        dep: document.getElementById('aDep').value || null,
+        target: +document.getElementById('aTarget').value,
+        status: 'active',
+        created: new Date().toLocaleDateString('pt-BR'),
+      };
+      list.unshift(alert);
+      saveAlerts(list);
+      renderAlerts();
+      showToast(`Alerta criado: ${alert.origin} → ${alert.dest} ≤ R$ ${alert.target}`);
+      e.target.reset();
+      document.getElementById('aOrigin').value = 'GRU';
+      document.getElementById('aDest').value = 'SSA';
+      document.getElementById('aTarget').value = 450;
+    });
+
+    window.toggleAlert = function(id) {
+      const list = loadAlerts().map(a => {
+        if (a.id === id) a.status = a.status === 'paused' ? 'active' : 'paused';
+        return a;
+      });
+      saveAlerts(list);
+      renderAlerts();
+    };
+    window.removeAlert = function(id) {
+      saveAlerts(loadAlerts().filter(a => a.id !== id));
+      renderAlerts();
+      showToast('Alerta removido');
+    };
+    window.createAlertFromSearch = createAlertFromSearch;
+
+    renderAlerts();
+
+    // ---------- Estimativa / gráfico ----------
+    // Preços médios simulados por mês (índice 0 = jan)
+    const MONTHLY_BASE = [620, 580, 540, 510, 490, 470, 520, 560, 590, 640, 700, 750];
+
+    function getInsight(origin, dest, monthStr) {
+      const seed = hashStr(origin + dest);
+      const [y, m] = monthStr.split('-').map(Number);
+      const monthIdx = m - 1;
+      const variation = 0.85 + (seed % 30) / 100;
+      const series = MONTHLY_BASE.map((v, i) => Math.round(v * variation * (1 + ((seed + i) % 15) / 100)));
+      const current = series[monthIdx];
+      const sorted = [...series].sort((a, b) => a - b);
+      const p25 = sorted[2];
+      const median = sorted[5];
+      const p75 = sorted[8];
+      let verdict, label, advice;
+      if (current <= p25) {
+        verdict = 'ideal';
+        label = '✓ Momento Ideal para Compra';
+        advice = `Para ${origin} → ${dest} em ${monthStr}, o preço simulado está abaixo do percentil 25 histórico. Boa janela.`;
+      } else if (current <= p75) {
+        verdict = 'good';
+        label = 'Preço Razoável';
+        advice = `Preço dentro da faixa histórica usual. A janela ideal costuma ser entre 45 e 60 dias antes do embarque.`;
+      } else {
+        verdict = 'high';
+        label = 'Acima da média — considere esperar';
+        advice = `Preço elevado em relação ao histórico. Monitore com um alerta ou busque datas flexíveis.`;
+      }
+      return { series, current, p25, median, p75, verdict, label, advice, monthIdx };
+    }
+
+    let chartInstance = null;
+
+    function drawChart(series, highlightIdx) {
+      const canvas = document.getElementById('priceChart');
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+      const w = rect.width;
+      const h = rect.height;
+      const pad = { t: 20, r: 16, b: 32, l: 44 };
+      const min = Math.min(...series) * 0.9;
+      const max = Math.max(...series) * 1.05;
+      const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+      ctx.clearRect(0, 0, w, h);
+
+      // grid
+      ctx.strokeStyle = '#273449';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = pad.t + (h - pad.t - pad.b) * (i / 4);
+        ctx.beginPath();
+        ctx.moveTo(pad.l, y);
+        ctx.lineTo(w - pad.r, y);
+        ctx.stroke();
+        const val = max - (max - min) * (i / 4);
+        ctx.fillStyle = '#8fa0b8';
+        ctx.font = '11px system-ui';
+        ctx.textAlign = 'right';
+        ctx.fillText('R$ ' + Math.round(val), pad.l - 6, y + 4);
+      }
+
+      // line
+      const pts = series.map((v, i) => {
+        const x = pad.l + (w - pad.l - pad.r) * (i / 11);
+        const y = pad.t + (h - pad.t - pad.b) * (1 - (v - min) / (max - min));
+        return { x, y, v };
+      });
+
+      ctx.beginPath();
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 2.5;
+      pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+      ctx.stroke();
+
+      // area
+      ctx.lineTo(pts[11].x, h - pad.b);
+      ctx.lineTo(pts[0].x, h - pad.b);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(59,130,246,0.12)';
+      ctx.fill();
+
+      // points + labels
+      pts.forEach((p, i) => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, i === highlightIdx ? 5 : 3, 0, Math.PI * 2);
+        ctx.fillStyle = i === highlightIdx ? '#22c55e' : '#60a5fa';
+        ctx.fill();
+        ctx.fillStyle = '#8fa0b8';
+        ctx.font = '11px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(months[i], p.x, h - 10);
+      });
+    }
+
+    document.getElementById('insightForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const origin = document.getElementById('iOrigin').value.trim().toUpperCase();
+      const dest = document.getElementById('iDest').value.trim().toUpperCase();
+      const tripType = document.getElementById('iTripType').value;
+      const depDate = document.getElementById('iDepDate').value;
+      const retDate = document.getElementById('iRetDate').value || null;
+      const month = document.getElementById('iMonth').value || (depDate ? depDate.slice(0, 7) : '');
+
+      if (tripType === 'roundtrip' && !retDate) {
+        showToast('Informe a data da volta para Ida e volta');
+        return;
+      }
+      if (tripType === 'roundtrip' && retDate && depDate && retDate < depDate) {
+        showToast('A data da volta deve ser após a ida');
+        return;
+      }
+
+      const data = getInsight(origin, dest, month);
+      const offers = mockAirlineOffers(origin, dest, depDate, retDate, tripType);
+      const lowest = offers[0].price;
+
+      const badge = document.getElementById('verdictBadge');
+      badge.className = 'verdict verdict-' + data.verdict;
+      badge.textContent = data.label;
+      document.getElementById('adviceText').textContent = data.advice;
+
+      // Datas localizadas (compacto)
+      const datesLine = document.getElementById('flightDatesLine');
+      if (tripType === 'roundtrip' && retDate) {
+        datesLine.innerHTML = `<strong>${origin} ⇄ ${dest}</strong> · Ida ${fmtDateBR(depDate)} · Volta ${fmtDateBR(retDate)}`;
+      } else {
+        datesLine.innerHTML = `<strong>${origin} → ${dest}</strong> · Só ida ${fmtDateBR(depDate)}`;
+      }
+
+      document.getElementById('sCurrent').textContent = 'Demo: R$ ' + lowest.toLocaleString('pt-BR');
+      document.getElementById('sP25').textContent = 'R$ ' + data.p25.toLocaleString('pt-BR');
+      document.getElementById('sMedian').textContent = 'R$ ' + data.median.toLocaleString('pt-BR');
+      document.getElementById('sP75').textContent = 'R$ ' + data.p75.toLocaleString('pt-BR');
+
+      document.getElementById('offersTitle').textContent = tripType === 'roundtrip'
+        ? 'Combinações simuladas (ida + volta)'
+        : 'Ofertas simuladas (só ida)';
+
+      const list = document.getElementById('airlineOffersList');
+      list.innerHTML = offers.map((o) => {
+        let routeHtml;
+        if (o.type === 'roundtrip') {
+          const ida = o.legs[0];
+          const volta = o.legs[1];
+          routeHtml = `
+            <div><span>Ida</span> ${ida.airline} · ${fmtDateBR(ida.date)} ${ida.depTime}
+              · ${ida.stops === 0 ? 'direto' : ida.stops + ' parada'} · R$ ${ida.price.toLocaleString('pt-BR')}</div>
+            <div><span>Volta</span> ${volta.airline} · ${fmtDateBR(volta.date)} ${volta.depTime}
+              · ${volta.stops === 0 ? 'direto' : volta.stops + ' parada'} · R$ ${volta.price.toLocaleString('pt-BR')}</div>`;
+        } else {
+          routeHtml = `<div>${origin} → ${dest} · ${fmtDateBR(o.depDate)} · ${o.depTime}–${o.arrTime}
+            · ${o.legs[0].stops === 0 ? 'direto' : o.legs[0].stops + ' parada'}</div>`;
+        }
+
+        const tags = [
+          o.isBest ? '<span class="badge badge-direct">Melhor</span>' : '',
+          o.type === 'roundtrip' && !o.sameAirline ? '<span class="badge badge-stop">Combinado</span>' : '',
+        ].join(' ');
+
+        // Botões de reserva: 1 principal; se combinado, link extra para a volta
+        let actionsHtml = `
+          <a class="btn-book" href="${o.bookingUrl}" target="_blank" rel="noopener noreferrer">
+            Consultar${o.sameAirline || o.type === 'oneway' ? '' : ' ida'} ↗
+          </a>`;
+        if (o.type === 'roundtrip' && !o.sameAirline) {
+          actionsHtml += `
+            <a class="btn-book-alt" href="${o.legs[1].bookingUrl}" target="_blank" rel="noopener noreferrer">
+              Consultar volta ↗
+            </a>`;
+        }
+
+        return `
+          <div class="offer-row">
+            <div class="or-airline">
+              ${o.name}
+              <div class="or-tags">${tags}</div>
+            </div>
+            <div class="or-route">${routeHtml}</div>
+            <div class="or-price">
+              ~ R$ ${o.price.toLocaleString('pt-BR')}
+              <small>${o.type === 'roundtrip' ? 'estim. ida+volta' : 'estimativa (demo)'}</small>
+            </div>
+            <div class="or-actions">${actionsHtml}</div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('insightResult').style.display = 'block';
+      // Desenha o gráfico só quando o details estiver aberto (ou já aberto)
+      const chartDetails = document.querySelector('#insightResult details.chart-section');
+      const draw = () => requestAnimationFrame(() => drawChart(data.series, data.monthIdx));
+      if (chartDetails && chartDetails.open) draw();
+      else if (chartDetails) {
+        chartDetails.addEventListener('toggle', function once() {
+          if (chartDetails.open) { draw(); chartDetails.removeEventListener('toggle', once); }
+        });
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      const res = document.getElementById('insightResult');
+      if (res.style.display !== 'none') {
+        const origin = document.getElementById('iOrigin').value.trim().toUpperCase();
+        const dest = document.getElementById('iDest').value.trim().toUpperCase();
+        const month = document.getElementById('iMonth').value;
+        if (month) {
+          const data = getInsight(origin, dest, month);
+          drawChart(data.series, data.monthIdx);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
